@@ -1,23 +1,36 @@
 mod color;
+mod hitable;
 mod ppm;
 mod ray;
+mod sphere;
 mod vec3;
 
 use color::Color;
+use hitable::Hitable;
 
 use crate::ray::Ray;
+use crate::sphere::Sphere;
 use crate::vec3::Vec3;
 
 fn main() {
-    const NX: usize = 200;
-    const NY: usize = 100;
+    const NX: usize = 800;
+    const NY: usize = 400;
 
-    let mut pixels: [[ppm::Pixel; NX]; NY] = [[(0, 0, 0).into(); NX]; NY];
+    let mut pixels: Box<[[ppm::Pixel; NX]; NY]> = unsafe {
+        let layout = std::alloc::Layout::new::<[[ppm::Pixel; NX]; NY]>();
+        let ptr = std::alloc::alloc_zeroed(layout) as *mut _;
+        Box::from_raw(ptr)
+    };
 
     let lower_left = Vec3::new(-2.0, -1.0, -1.0);
     let vec_horizontal = Vec3::new(4.0, 0.0, 0.0);
     let vec_vertical = Vec3::new(0.0, 2.0, 0.0);
     let origin = Vec3::new(0.0, 0.0, 0.0);
+
+    let hit: Vec<Sphere<f64>> = vec![
+        Sphere::new(Vec3::new(0.0, 0.0, -1.0), 0.5),
+        Sphere::new(Vec3::new(0.0, -100.5, -1.0), 100.0),
+    ];
 
     for j in (0..NY).rev() {
         for i in 0..NX {
@@ -26,7 +39,7 @@ fn main() {
 
             let ray = Ray::new(origin, lower_left + vec_horizontal * u + vec_vertical * v);
 
-            pixels[j][i] = pixel(ray);
+            pixels[j][i] = pixel(ray, &hit);
         }
     }
 
@@ -35,20 +48,19 @@ fn main() {
     std::fs::write("test.ppm", ppm.to_string()).unwrap();
 }
 
-fn ray_hits_sphere(center: Vec3<f64>, radius: f64, ray: Ray<f64>) -> bool {
-    let oc = ray.origin - center;
-    let a = ray.direction.dot(ray.direction);
-    let b = 2.0 * ray.direction.dot(oc);
-    let c = oc.dot(oc) - radius.powi(2);
-    let discriminant = b.powi(2) - 4.0 * a * c;
+fn pixel<H>(ray: Ray<f64>, world: &H) -> ppm::Pixel
+where
+    H: Hitable<f64>,
+{
+    if let Some(hit) = world.hit(ray, 0.0, f64::MAX) {
+        let n = hit.normal;
 
-    discriminant > 0.0
-}
-
-fn pixel(ray: Ray<f64>) -> ppm::Pixel {
-    if ray_hits_sphere(Vec3::new(0.0, 0.0, -1.0), 0.5, ray) {
-        return Color::new(255, 0, 0);
-    }
+        return Color::new(
+            (255.99 * n.x) as u16,
+            (255.99 * n.y) as u16,
+            (255.99 * n.z) as u16,
+        );
+    };
 
     let direction = ray.direction.unit();
     let t = 0.5 * (direction.y + 1.0);
