@@ -1,9 +1,10 @@
+use crate::color::Color;
 use std::array;
 use std::cmp;
 use std::fmt::Display;
 use std::fmt::Write;
 
-type Pixel = (u16, u16, u16);
+pub type Pixel = Color<u16>;
 
 pub struct PPM<const WIDTH: usize, const HEIGHT: usize> {
     pixels: [[Pixel; WIDTH]; HEIGHT],
@@ -21,7 +22,7 @@ impl<const WIDTH: usize, const HEIGHT: usize> Display for PPM<WIDTH, HEIGHT> {
         let mut max_color = 0;
 
         for pixel_row in array::IntoIter::new(self.pixels).rev() {
-            for (r, g, b) in array::IntoIter::new(pixel_row) {
+            for Color { r, g, b } in array::IntoIter::new(pixel_row) {
                 max_color = cmp::max(max_color, cmp::max(r, cmp::max(g, b)));
                 write!(pixel_str, "{} {} {}\n", r, g, b)?;
             }
@@ -40,9 +41,9 @@ mod test {
     #[test]
     fn display_ppm() {
         let ppm = PPM::<2, 3>::new([
-            [(1, 10, 20), (5, 2, 5)],
-            [(5, 7, 4), (1, 5, 4)],
-            [(1, 10, 21), (5, 2, 5)],
+            [(1, 10, 20).into(), (5, 2, 5).into()],
+            [(5, 7, 4).into(), (1, 5, 4).into()],
+            [(1, 10, 21).into(), (5, 2, 5).into()],
         ]);
 
         assert_eq!(
