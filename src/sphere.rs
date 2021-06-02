@@ -1,7 +1,10 @@
+use std::rc::Rc;
+
 use num_traits::Float;
 
 use crate::{
     hitable::{Hit, Hitable},
+    material::Material,
     ray::Ray,
     vec3::Vec3,
 };
@@ -9,11 +12,12 @@ use crate::{
 pub struct Sphere<T> {
     center: Vec3<T>,
     radius: T,
+    material: Rc<dyn Material<T>>,
 }
 
 impl<T> Sphere<T> {
-    pub fn new(center: Vec3<T>, radius: T) -> Self {
-        Self { center, radius }
+    pub fn new(center: Vec3<T>, radius: T, material: Rc<dyn Material<T>>) -> Self {
+        Self { center, radius, material }
     }
 }
 
@@ -23,39 +27,29 @@ where
 {
     fn hit(&self, ray: Ray<T>, t_min: T, t_max: T) -> Option<Hit<T>> {
         let oc = ray.origin - self.center;
-        let a = ray.direction.dot(ray.direction);
-        let b = Into::<T>::into(2.0) * ray.direction.dot(oc);
-        let c = oc.dot(oc) - self.radius * self.radius;
-        let discriminant = b * b - Into::<T>::into(4.0) * a * c;
+        let a = ray.direction.length_squared();
+        let half_b = ray.direction.dot(oc);
+        let c = oc.length_squared() - self.radius.powi(2);
+        let discriminant = half_b.powi(2) - a * c;
 
-        if !discriminant.is_sign_negative() {
-            let t = (-b - (b * b - a * c).sqrt()) / a;
-            if t < t_max && t > t_min {
-                let p = ray.point_at_time(t);
+        if discriminant.is_sign_negative() {
+            return None;
+        }
 
-                let hit = Hit {
-                    t,
-                    p,
-                    normal: (p - self.center) / self.radius,
-                };
+        let sqrtd = discriminant.sqrt();
 
-                return Some(hit);
-            }
-
-            let t = (-b + (b * b - a * c).sqrt()) / a;
-            if t < t_max && t > t_min {
-                let p = ray.point_at_time(t);
-
-                let hit = Hit {
-                    t,
-                    p,
-                    normal: (p - self.center) / self.radius,
-                };
-
-                return Some(hit);
+        let root = (-half_b - sqrtd) / a;
+        if root < t_min || t_max < root {
+            let root = (-half_b + sqrtd) / a;
+            if root < t_min || t_max < root {
+                return None;
             }
         }
 
-        None
+        let point = ray.point_at_time(root);
+        let outward_normal = (point - self.center) / self.radius;
+        let hit = Hit::new(root, point, outward_normal, ray, self.material.clone());
+
+        Some(hit)
     }
 }

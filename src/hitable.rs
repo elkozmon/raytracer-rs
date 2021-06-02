@@ -1,9 +1,68 @@
-use crate::{ray::Ray, vec3::Vec3};
+use std::rc::Rc;
+
+use num_traits::Float;
+
+use crate::{
+    material::Material,
+    ray::Ray,
+    vec3::{Point3, Vec3},
+};
 
 pub struct Hit<T> {
-    pub t: T,
-    pub p: Vec3<T>,
-    pub normal: Vec3<T>,
+    t: T,
+    p: Point3<T>,
+    normal: Vec3<T>,
+    material: Rc<dyn Material<T>>,
+    front_face: bool,
+}
+
+impl<T> Hit<T>
+where
+    T: Float + From<f64>,
+{
+    pub fn new(
+        root: T,
+        point: Point3<T>,
+        outward_normal: Vec3<T>,
+        ray: Ray<T>,
+        material: Rc<dyn Material<T>>,
+    ) -> Self {
+        let front_face = ray.direction.dot(outward_normal) < 0.0.into();
+
+        let normal = if front_face {
+            outward_normal
+        } else {
+            -outward_normal
+        };
+
+        Self {
+            t: root,
+            p: point,
+            normal,
+            material,
+            front_face,
+        }
+    }
+
+    pub fn root(&self) -> T {
+        self.t
+    }
+
+    pub fn point(&self) -> Point3<T> {
+        self.p
+    }
+
+    pub fn normal(&self) -> Vec3<T> {
+        self.normal
+    }
+
+    pub fn front_face(&self) -> bool {
+        self.front_face
+    }
+
+    pub fn material(&self) -> Rc<dyn Material<T>> {
+        self.material.clone()
+    }
 }
 
 pub trait Hitable<T> {
