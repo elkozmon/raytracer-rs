@@ -9,7 +9,7 @@ use crate::{
     vec3::{Color, Point3, Vec3},
 };
 
-pub trait Material<T> {
+pub trait Material<T>: Send + Sync {
     fn scatter(&self, ray: Ray<T>, hit: Hit<T>) -> Option<(Color<T>, Ray<T>)>;
 }
 
@@ -39,7 +39,7 @@ impl<T> Lambertian<T> {
 
 impl<T> Material<T> for Lambertian<T>
 where
-    T: Float + From<f64> + SampleUniform,
+    T: Float + From<f64> + SampleUniform + Send + Sync,
 {
     fn scatter(&self, ray: Ray<T>, hit: Hit<T>) -> Option<(Color<T>, Ray<T>)> {
         let mut scatter_direction = hit.normal() + random_point_in_unit_sphere().unit();
@@ -72,7 +72,7 @@ impl<T> Metal<T> {
 
 impl<T> Material<T> for Metal<T>
 where
-    T: Float + From<f64> + Copy,
+    T: Float + From<f64> + Send + Sync + Copy,
 {
     fn scatter(&self, ray: Ray<T>, hit: Hit<T>) -> Option<(Color<T>, Ray<T>)> {
         let reflected = reflect(ray.direction.unit(), hit.normal());

@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, sync::Arc};
 
 use num_traits::Float;
 
@@ -12,7 +12,7 @@ pub struct Hit<T> {
     t: T,
     p: Point3<T>,
     normal: Vec3<T>,
-    material: Rc<dyn Material<T>>,
+    material: Arc<dyn Material<T>>,
     front_face: bool,
 }
 
@@ -25,7 +25,7 @@ where
         point: Point3<T>,
         outward_normal: Vec3<T>,
         ray: Ray<T>,
-        material: Rc<dyn Material<T>>,
+        material: Arc<dyn Material<T>>,
     ) -> Self {
         let front_face = ray.direction.dot(outward_normal) < 0.0.into();
 
@@ -60,7 +60,7 @@ where
         self.front_face
     }
 
-    pub fn material(&self) -> Rc<dyn Material<T>> {
+    pub fn material(&self) -> Arc<dyn Material<T>> {
         self.material.clone()
     }
 }

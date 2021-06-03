@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, sync::Arc};
 
 use num_traits::Float;
 
@@ -12,11 +12,11 @@ use crate::{
 pub struct Sphere<T> {
     center: Vec3<T>,
     radius: T,
-    material: Rc<dyn Material<T>>,
+    material: Arc<dyn Material<T>>,
 }
 
 impl<T> Sphere<T> {
-    pub fn new(center: Vec3<T>, radius: T, material: Rc<dyn Material<T>>) -> Self {
+    pub fn new(center: Vec3<T>, radius: T, material: Arc<dyn Material<T>>) -> Self {
         Self { center, radius, material }
     }
 }

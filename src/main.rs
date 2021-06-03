@@ -6,21 +6,19 @@ mod ray;
 mod sphere;
 mod vec3;
 
-use std::rc::Rc;
-
+use crate::material::Lambertian;
+use crate::material::Metal;
 use camera::Camera;
 use hitable::Hitable;
 use num_traits::ToPrimitive;
 use rand::thread_rng;
 use rand::Rng;
 use ray::Ray;
+use rayon::prelude::*;
 use sphere::Sphere;
+use std::sync::Arc;
 use vec3::Color;
-use vec3::Point3;
 use vec3::Vec3;
-
-use crate::material::Lambertian;
-use crate::material::Metal;
 
 const ASPECT_RATIO: f64 = 16.0 / 9.0;
 const IMAGE_HEIGHT: usize = 480;
@@ -37,10 +35,10 @@ fn main() {
 
     let camera = Camera::new(ASPECT_RATIO);
 
-    let mat_ground = Rc::new(Lambertian::new(Color::new(0.8, 0.8, 0.0)));
-    let mat_center = Rc::new(Lambertian::new(Color::new(0.7, 0.3, 0.3)));
-    let mat_left = Rc::new(Metal::new(Color::new(0.8, 0.8, 0.8)));
-    let mat_right = Rc::new(Metal::new(Color::new(0.8, 0.6, 0.2)));
+    let mat_ground = Arc::new(Lambertian::new(Color::new(0.8, 0.8, 0.0)));
+    let mat_center = Arc::new(Lambertian::new(Color::new(0.7, 0.3, 0.3)));
+    let mat_left = Arc::new(Metal::new(Color::new(0.8, 0.8, 0.8)));
+    let mat_right = Arc::new(Metal::new(Color::new(0.8, 0.6, 0.2)));
 
     let world: Vec<Sphere<f64>> = vec![
         Sphere::new(Vec3::new(0.0, -100.5, -1.0), 100.0, mat_ground),
@@ -49,25 +47,33 @@ fn main() {
         Sphere::new(Vec3::new(1.0, 0.0, -1.0), 0.5, mat_right),
     ];
 
-    let mut rng = thread_rng();
+    let render: Vec<(usize, usize, Color<f64>)> = (0..IMAGE_WIDTH * IMAGE_HEIGHT)
+        .into_par_iter()
+        .map(|i| {
+            let mut rng = thread_rng();
 
-    for j in (0..IMAGE_HEIGHT).rev() {
-        print!("\rScanlines remaining: {}...", j);
+            let h = i / IMAGE_WIDTH;
+            let w = i % IMAGE_WIDTH;
 
-        for i in 0..IMAGE_WIDTH {
             let mut color = Color::new(0.0, 0.0, 0.0);
 
             for _ in 0..SAMPLES_PP {
-                let u = (i as f64 + rng.gen_range(0.0..1.0)) / (IMAGE_WIDTH - 1) as f64;
-                let v = (j as f64 + rng.gen_range(0.0..1.0)) / (IMAGE_HEIGHT - 1) as f64;
+                let u = (w as f64 + rng.gen_range(0.0..1.0)) / (IMAGE_WIDTH - 1) as f64;
+                let v = (h as f64 + rng.gen_range(0.0..1.0)) / (IMAGE_HEIGHT - 1) as f64;
                 let ray = camera.ray(u, v);
                 color = color + ray_color(ray, &world, MAX_DEPTH);
             }
 
-            pixels[j][i] = (color / SAMPLES_PP.to_f64().unwrap())
+            let color = (color / SAMPLES_PP.to_f64().unwrap())
                 .sqrt()
                 .clamp(0.0, 0.999);
-        }
+
+            (h, w, color)
+        })
+        .collect();
+
+    for (h, w, c) in render {
+        pixels[h][w] = c;
     }
 
     print!("\nDone!\n");
